@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Geek Code Runner V3 (Mobile Ready)</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/dracula.min.css">
+
+    <style>
+        body, html { 
+            margin: 0; padding: 0; 
+            height: 100%; height: 100dvh; /* 适配移动端动态高度 */
+            width: 100%;
+            overflow: hidden; 
+            background-color: #282a36; 
+        }
+
+        /* 编辑器本体 */
+        .CodeMirror { 
+            height: 100%; 
+            font-family: 'Fira Code', 'Menlo', monospace; 
+            font-size: 14px; /* 桌面端默认字号 */
+            line-height: 1.6;
+        }
+
+        /* === 运行按钮 (桌面端样式) === */
+        #run-btn {
+            position: fixed; 
+            top: 20px; right: 30px; 
+            z-index: 100;
+            background: #bd93f9; 
+            color: #282a36; 
+            border: none; 
+            padding: 12px 24px;
+            font-size: 14px; 
+            font-weight: 800; 
+            border-radius: 6px; 
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            display: flex; align-items: center; gap: 8px;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        #run-btn:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 6px 20px rgba(189, 147, 249, 0.4); 
+            background: #fff; 
+        }
+
+        /* === 📱 移动端专属优化 (Media Queries) === */
+        @media (max-width: 768px) {
+            /* 1. 字体放大，保护视力，且防止 iOS 自动放大输入框 */
+            .CodeMirror {
+                font-size: 16px !important; 
+            }
+            
+            /* 2. 按钮移到右下角 (Floating Action Button) */
+            #run-btn {
+                top: auto; 
+                bottom: 30px; 
+                right: 20px;
+                padding: 16px 24px; /* 更大的点击区域 */
+                border-radius: 50px; /* 变成胶囊形状 */
+                box-shadow: 0 10px 30px rgba(0,0,0,0.5); /* 更强的阴影 */
+                background: #ff79c6; /* 移动端换个更醒目的粉色 */
+                color: #fff;
+            }
+            
+            /* 3. 调整行号宽度，给小屏幕留更多空间 */
+            .CodeMirror-gutters {
+                width: 30px !important;
+            }
+        }
+        
+        .icon-play { width: 14px; height: 14px; fill: currentColor; }
+    </style>
+</head>
+<body>
+
+    <button id="run-btn">
+        <svg class="icon-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        <span id="btn-text">RUN CODE</span>
+    </button>
+
+    <textarea id="code-editor"></textarea>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/xml/xml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/css/css.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/htmlmixed/htmlmixed.min.js"></script>
+
+    <script>
+        // 1. 初始化编辑器
+        var editor = CodeMirror.fromTextArea(document.getElementById("code-editor"), {
+            mode: "htmlmixed",
+            theme: "dracula",
+            lineNumbers: true,
+            lineWrapping: true, // 关键：移动端必须自动换行，不然要一直左右滑
+            autofocus: true,
+            indentUnit: 2,      // 移动端缩进2格，节省空间
+            tabSize: 2,
+        });
+
+        // 2. 检测设备并更新按钮文字（可选）
+        function updateLayout() {
+            const isMobile = window.innerWidth <= 768;
+            const btnText = document.getElementById("btn-text");
+            // 移动端精简文案
+            if(isMobile) btnText.innerText = "RUN"; 
+            else btnText.innerText = "RUN W/ PATCH";
+        }
+        window.addEventListener('resize', updateLayout);
+        updateLayout();
+
+        // 3. 核心魔法：注入补丁的运行逻辑 (包含 Storage Fix)
+        document.getElementById("run-btn").addEventListener("click", function() {
+            const rawCode = editor.getValue();
+            
+            const storagePatch = `
+            <script>
+                (function() {
+                    console.log("🔧 Mobile/Web System: Injecting Virtual Storage Patch...");
+                    try {
+                        window.localStorage; 
+                    } catch(e) {
+                        const mockStore = {
+                            _data: {},
+                            getItem: function(k) { return this._data[k] || null; },
+                            setItem: function(k, v) { this._data[k] = String(v); },
+                            removeItem: function(k) { delete this._data[k]; },
+                            clear: function() { this._data = {}; },
+                            key: function(i) { return Object.keys(this._data)[i] || null; },
+                            get length() { return Object.keys(this._data).length; }
+                        };
+                        Object.defineProperty(window, 'localStorage', {
+                            value: mockStore, writable: true, configurable: true
+                        });
+                    }
+                })();
+            <\/script>
+            `;
+
+            const finalCode = storagePatch + rawCode;
+            const blob = new Blob([finalCode], {type: "text/html;charset=utf-8"});
+            const url = URL.createObjectURL(blob);
+            window.open(url, "_blank");
+        });
+    </script>
+</body>
+</html>
